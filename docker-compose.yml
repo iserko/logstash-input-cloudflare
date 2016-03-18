@@ -1,0 +1,20 @@
+logstash:
+  image: logstash:2.2.2
+  links:
+    - elasticsearch:esserver
+  volumes:
+    - ./logstash.conf:/config/logstash.conf
+    - .:/logstash-input-cloudflare
+  command: logstash --pluginpath /logstash-input-cloudflare/lib/ -f /config/logstash.conf --verbose
+
+kibana:
+  image: kibana:4.4.2
+  links:
+    - elasticsearch:esserver
+  environment:
+    - ELASTICSEARCH_URL=http://esserver:9200
+  ports:
+    - 5601:5601
+
+elasticsearch:
+  image: elasticsearch:2.2

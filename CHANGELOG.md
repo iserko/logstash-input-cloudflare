@@ -1,0 +1,2 @@
+## 0.1.0
+ - Initial version of the Cloudflare input plugin

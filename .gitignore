@@ -1,0 +1,14 @@
+\#*\#
+.\#*
+.ruby-version
+.ruby-gemset
+*.gem
+*.rbc
+/spec/reports/
+/spec/examples.txt
+/.bundle/
+/vendor/bundle
+/lib/bundler/man
+Gemfile.lock
+previous_cf_rayid
+logstash.conf
