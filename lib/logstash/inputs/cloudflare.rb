@@ -50,7 +50,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       return ''
     end
     ray_id = File.read(@history_filepath).strip
-    return ray_id
+    ray_id
   end # def read_previous_ray_id
 
   def write_ray_id(ray_id)
@@ -110,7 +110,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
 
   def cloudflare_data(zone_id, ray_id)
     params = {}
-    if ray_id and not ray_id.empty
+    if ray_id && ! ray_id.empty?
       @logger.info("Previous ray_id detected: #{ray_id}")
       params['start_id'] = ray_id
       params['count'] = 100
