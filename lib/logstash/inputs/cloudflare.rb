@@ -21,15 +21,15 @@ class CloudflareAPIError < StandardError
     @success = json_data.fetch('success')
     @errors = json_data.fetch('errors', [])
     @status_code = response.code
-  end
-end
+  end # def initialize
+end # class CloudflareAPIError
 
 def response_body(response)
   return response.body.strip unless response.header['Content-Encoding'].eql?('gzip')
   sio = StringIO.new(response.body)
   gz = Zlib::GzipReader.new(sio)
   gz.read.strip
-end
+end # def response_body
 
 def parse_content(content)
   return [] if content.empty?
@@ -45,7 +45,7 @@ def parse_content(content)
     end
   end
   lines
-end
+end # def parse_content
 
 def read_file(filepath)
   # read the ray_id of the message which was parsed last
@@ -61,7 +61,7 @@ def write_file(filepath, content)
   File.open(filepath, 'w') do |file|
     file.write(content)
   end
-end
+end # def write_file
 
 class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config_name 'cloudflare'
@@ -83,8 +83,6 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   def register
     @host = Socket.gethostname
   end # def register
-
-
 
   def cloudflare_api_call(endpoint, params, multi_line = false)
     uri = URI("https://api.cloudflare.com/client/v4#{endpoint}")
@@ -116,7 +114,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       return zone['id'] if zone['name'] == domain
     end
     raise "No zone with domain #{domain} found"
-  end
+  end # def cloudflare_zone_id
 
   def cf_params(ray_id, tstamp)
     params = {}
@@ -136,7 +134,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       params['end'] = params['start'] + 120
     end
     params
-  end
+  end # def cf_params
 
   def cloudflare_data(zone_id, ray_id, tstamp)
     params = cf_params(ray_id, tstamp)
@@ -151,11 +149,9 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       end
       entries = {}
     end
-    if entries.empty?
-      @logger.info('No entries returned from Cloudflare')
-      return []
-    end
-    entries
+    return entries unless entries.empty?
+    @logger.info('No entries returned from Cloudflare')
+    []
   end # def cloudflare_data
 
   def fill_cloudflare_data(event, data)
@@ -198,6 +194,6 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         @logger.error(exception.backtrace.join("\n"))
         raise(exception)
       end
-    end # while loop
+    end # until loop
   end # def run
 end # class LogStash::Inputs::Cloudflare
