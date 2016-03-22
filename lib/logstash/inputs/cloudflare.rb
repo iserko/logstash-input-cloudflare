@@ -24,6 +24,45 @@ class CloudflareAPIError < StandardError
   end
 end
 
+def response_body(response)
+  return response.body.strip unless response.header['Content-Encoding'].eql?('gzip')
+  sio = StringIO.new(response.body)
+  gz = Zlib::GzipReader.new(sio)
+  gz.read.strip
+end
+
+def parse_content(content)
+  return [] if content.empty?
+  lines = []
+  content.split("\n").each do |line|
+    line = line.strip
+    next if line.empty?
+    begin
+      lines << JSON.parse(line)
+    rescue JSON::ParserError
+      @logger.error("Couldn't parse JSON out of '#{line}'")
+      next
+    end
+  end
+  lines
+end
+
+def read_file(filepath)
+  # read the ray_id of the message which was parsed last
+  unless File.exist?(filepath)
+    @logger.info("file #{filepath} doesn't exist")
+    return ''
+  end
+  File.read(filepath).strip
+end # def read_file
+
+def write_file(filepath, content)
+  return nil unless content
+  File.open(filepath, 'w') do |file|
+    file.write(content)
+  end
+end
+
 class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config_name 'cloudflare'
 
@@ -32,8 +71,10 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config :auth_email, validate: :string, required: true
   config :auth_key, validate: :string, required: true
   config :domain, validate: :string, required: true
-  config :history_filepath,
+  config :cf_rayid_filepath,
          validate: :string, default: '/tmp/previous_cf_rayid', required: false
+  config :cf_tstamp_filepath,
+         validate: :string, default: '/tmp/previous_cf_tstamp', required: false
   config :poll_time, validate: :number, default: 15, required: false
   config :default_age, validate: :number, default: 1200, required: false
 
@@ -43,57 +84,26 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     @host = Socket.gethostname
   end # def register
 
-  def read_previous_ray_id
-    # read the ray_id of the message which was parsed last
-    unless File.exist?(@history_filepath)
-      @logger.info("file #{@history_filepath} doesn't exist")
-      return ''
-    end
-    ray_id = File.read(@history_filepath).strip
-    ray_id
-  end # def read_previous_ray_id
 
-  def write_ray_id(ray_id)
-    return nil unless ray_id
-    File.open(@history_filepath, 'w') do |file|
-      file.write(ray_id)
-    end
-  end
 
   def cloudflare_api_call(endpoint, params, multi_line = false)
-    url = "https://api.cloudflare.com/client/v4#{endpoint}"
-    uri = URI(url)
+    uri = URI("https://api.cloudflare.com/client/v4#{endpoint}")
     uri.query = URI.encode_www_form(params)
     @logger.info('Sending request to Cloudflare')
     Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-      request = Net::HTTP::Get.new(uri.request_uri, 'Accept-Encoding' => 'gzip')
-      request['X-Auth-Email'] = @auth_email
-      request['X-Auth-Key'] = @auth_key
+      request = Net::HTTP::Get.new(
+        uri.request_uri,
+        'Accept-Encoding' => 'gzip',
+        'X-Auth-Email' => @auth_email,
+        'X-Auth-Key' => @auth_key
+      )
       response = http.request(request)
-      if response.header['Content-Encoding'].eql?('gzip')
-        sio = StringIO.new(response.body)
-        gz = Zlib::GzipReader.new(sio)
-        content = gz.read
-      else
-        content = response.body
-      end
       if response.code != '200'
-        raise CloudflareAPIError.new(url, response, content),
+        raise CloudflareAPIError.new(uri.to_s, response, content),
               'Error calling Cloudflare API'
       end
-      content = content.strip
-      lines = []
-      return lines if content.empty?
-      content.split("\n").each do |line|
-        line = line.strip
-        next if line.empty?
-        begin
-          lines << JSON.parse(line)
-        rescue JSON::ParserError
-          @logger.error("Couldn't parse JSON out of '#{line}'")
-          next
-        end
-      end
+      content = response_body(response)
+      lines = parse_content(content)
       return lines if multi_line
       return lines[0]
     end
@@ -108,17 +118,28 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     raise "No zone with domain #{domain} found"
   end
 
-  def cloudflare_data(zone_id, ray_id)
+  def cf_params(ray_id, tstamp)
     params = {}
-    if ray_id && ! ray_id.empty?
+    # timestamp should always have priority over ray id due to the
+    # API not supporting `count`
+    if tstamp && !tstamp.empty?
+      @logger.info("Previous timestamp detected: #{tstamp}")
+      params['start'] = tstamp.to_i
+      params['end'] = tstamp.to_i + 120
+    elsif ray_id && !ray_id.empty?
       @logger.info("Previous ray_id detected: #{ray_id}")
       params['start_id'] = ray_id
-      params['count'] = 100
+      params['count'] = 100 # not supported in the API yet
     else
-      @logger.info('Previous ray_id NOT detected')
+      @logger.info('Previous tstamp or ray_id NOT detected')
       params['start'] = Time.now.to_i - @default_age
-      params['end'] = params['start'] + 60
+      params['end'] = params['start'] + 120
     end
+    params
+  end
+
+  def cloudflare_data(zone_id, ray_id, tstamp)
+    params = cf_params(ray_id, tstamp)
     @logger.info("Using params #{params}")
     begin
       entries = cloudflare_api_call("/zones/#{zone_id}/logs/requests",
@@ -138,6 +159,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   end # def cloudflare_data
 
   def fill_cloudflare_data(event, data)
+    @logger.info(data)
     event['testing'] = data[0]
   end # def fill_cloudflare_data
 
@@ -147,9 +169,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     @logger.info("Resolved zone ID #{zone_id} for domain #{@domain}")
     until stop?
       begin
-        ray_id = read_previous_ray_id
-        entries = cloudflare_data(zone_id, ray_id)
+        ray_id = read_file(@cf_rayid_filepath)
+        tstamp = read_file(@cf_tstamp_filepath)
+        entries = cloudflare_data(zone_id, ray_id, tstamp)
         new_ray_id = nil
+        new_tstamp = nil
         @logger.info("Received #{entries.length} events")
         entries.each do |entry|
           event = LogStash::Event.new('host' => @host)
@@ -157,8 +181,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
           decorate(event)
           queue << event
           new_ray_id = entry['rayId']
+          # Cloudflare provides the timestamp in nanoseconds
+          new_tstamp = entry['timestamp'] / 1_000_000_000
         end
-        write_ray_id(new_ray_id)
+        write_file(@cf_rayid_filepath, new_ray_id)
+        write_file(@cf_tstamp_filepath, new_tstamp)
         @logger.info("Waiting #{@poll_time} seconds before requesting data"\
                      'from Cloudflare again')
         (@poll_time * 2).times do
@@ -166,6 +193,9 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         end
       rescue => exception
         break if stop?
+        @logger.error(exception.class)
+        @logger.error(exception.message)
+        @logger.error(exception.backtrace.join("\n"))
         raise(exception)
       end
     end # while loop
