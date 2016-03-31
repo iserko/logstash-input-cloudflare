@@ -1,4 +1,5 @@
 # encoding: utf-8
+require 'date'
 require 'json'
 require 'logstash/inputs/base'
 require 'logstash/namespace'
@@ -121,7 +122,8 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     # timestamp should always have priority over ray id due to the
     # API not supporting `count`
     if tstamp && !tstamp.empty?
-      @logger.info("Previous timestamp detected: #{tstamp}")
+      dt_tstamp = DateTime.strptime(tstamp, '%s')
+      @logger.info("Previous timestamp detected: #{tstamp} #{dt_tstamp}")
       params['start'] = tstamp.to_i
       params['end'] = tstamp.to_i + 120
     elsif ray_id && !ray_id.empty?
