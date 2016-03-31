@@ -18,7 +18,7 @@ class CloudflareAPIError < StandardError
       json_data = {}
     end
     @url = url
-    @success = json_data.fetch('success')
+    @success = json_data.fetch('success', false)
     @errors = json_data.fetch('errors', [])
     @status_code = response.code
   end # def initialize
@@ -96,11 +96,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         'X-Auth-Key' => @auth_key
       )
       response = http.request(request)
+      content = response_body(response)
       if response.code != '200'
         raise CloudflareAPIError.new(uri.to_s, response, content),
               'Error calling Cloudflare API'
       end
-      content = response_body(response)
       lines = parse_content(content)
       return lines if multi_line
       return lines[0]
