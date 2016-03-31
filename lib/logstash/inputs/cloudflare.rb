@@ -130,7 +130,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       params['count'] = 100 # not supported in the API yet
     else
       @logger.info('Previous tstamp or ray_id NOT detected')
-      params['start'] = Time.now.to_i - @default_age
+      params['start'] = Time.now.getutc.to_i - @default_age
       params['end'] = params['start'] + 120
     end
     params
