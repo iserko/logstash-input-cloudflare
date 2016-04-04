@@ -182,13 +182,26 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
           # Cloudflare provides the timestamp in nanoseconds
           new_tstamp = entry['timestamp'] / 1_000_000_000
         end
+        @logger.info("new_tstamp #{new_tstamp}")
+        if !new_tstamp
+          # we need to increment the timestamp by 2 minutes as we haven't
+          # received any results in the last batch ... also make sure we
+          # only do this if the end date is more than 10 minutes from the current time
+          max_time = Time.now.getutc.to_i - @default_age
+          mod_tstamp = tstamp.to_i + 120
+          unless mod_tstamp > max_time
+            @logger.info('Incrementing start timestamp by 120 seconds')
+            new_tstamp = mod_tstamp
+          end
+        else # if new_tstamp is set, we received results
+          @logger.info("Waiting #{@poll_time} seconds before requesting data"\
+                       'from Cloudflare again')
+          (@poll_time * 2).times do
+            sleep(0.5)
+          end
+        end
         write_file(@cf_rayid_filepath, new_ray_id)
         write_file(@cf_tstamp_filepath, new_tstamp)
-        @logger.info("Waiting #{@poll_time} seconds before requesting data"\
-                     'from Cloudflare again')
-        (@poll_time * 2).times do
-          sleep(0.5)
-        end
       rescue => exception
         break if stop?
         @logger.error(exception.class)
