@@ -26,6 +26,7 @@ class CloudflareAPIError < StandardError
 end # class CloudflareAPIError
 
 def response_body(response)
+  return '' unless response.body
   return response.body.strip unless response.header['Content-Encoding'].eql?('gzip')
   sio = StringIO.new(response.body)
   gz = Zlib::GzipReader.new(sio)
