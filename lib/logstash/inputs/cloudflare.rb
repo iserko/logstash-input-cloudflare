@@ -184,10 +184,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
           new_tstamp = entry['timestamp'] / 1_000_000_000
         end
         @logger.info("new_tstamp #{new_tstamp}")
-        if !new_tstamp
+        if !new_tstamp && tstamp && !tstamp.empty?
           # we need to increment the timestamp by 2 minutes as we haven't
           # received any results in the last batch ... also make sure we
-          # only do this if the end date is more than 10 minutes from the current time
+          # only do this if the end date is more than 10 minutes from the
+          # current time
           max_time = Time.now.getutc.to_i - @default_age
           mod_tstamp = tstamp.to_i + 120
           unless mod_tstamp > max_time
