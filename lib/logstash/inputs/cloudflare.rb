@@ -150,11 +150,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         @logger.error("Cloudflare error code: #{error['code']}: "\
                       "#{error['message']}")
       end
-      entries = {}
+      entries = []
     end
     return entries unless entries.empty?
     @logger.info('No entries returned from Cloudflare')
-    []
+    entries
   end # def cloudflare_data
 
   def fill_cloudflare_data(event, data)
