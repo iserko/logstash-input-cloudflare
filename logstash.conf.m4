@@ -11,7 +11,7 @@ input {
 output {
     elasticsearch {
         hosts => ["esserver:9200"]
-        index => "cloudflare-logstash-%{+YYYY.MM.dd}"
+        index => "logstash-%{+YYYY.MM.dd}"
     }
 }
 filter {
