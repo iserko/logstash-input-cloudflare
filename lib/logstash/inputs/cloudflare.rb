@@ -65,6 +65,17 @@ def write_file(filepath, content)
   end
 end # def write_file
 
+# you can get the list of fields in the documentation provided
+# by Cloudflare
+DEFAULT_FIELDS = [
+  'timestamp', 'zoneId', 'ownerId', 'zoneName', 'rayId', 'securityLevel',
+  'client.ip', 'client.country', 'client.sslProtocol', 'client.sslCipher',
+  'client.deviceType', 'client.asNum', 'clientRequest.bytes',
+  'clientRequest.httpHost', 'clientRequest.httpMethod', 'clientRequest.uri',
+  'clientRequest.httpProtocol', 'clientRequest.userAgent',
+  'edgeResponse.status', 'edgeResponse.bytes'
+].freeze
+
 class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config_name 'cloudflare'
 
@@ -79,6 +90,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
          validate: :string, default: '/tmp/previous_cf_tstamp', required: false
   config :poll_time, validate: :number, default: 15, required: false
   config :default_age, validate: :number, default: 1200, required: false
+  config :fields, validate: :array, default: DEFAULT_FIELDS, required: false
 
   public
 
@@ -158,8 +170,13 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   end # def cloudflare_data
 
   def fill_cloudflare_data(event, data)
-    @logger.info(data)
-    event['testing'] = data[0]
+    fields.each do |field|
+      value = Hash[data]
+      field.split('.').each do |field_part|
+        value = value.fetch(field_part, {})
+      end
+      event[field.tr('.', '_')] = value
+    end
   end # def fill_cloudflare_data
 
   def run(queue)
