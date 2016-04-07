@@ -18,4 +18,4 @@ kibana:
 
 elasticsearch:
   image: elasticsearch:2.2
-  command: bash -c "plugin install mobz/elasticsearch-head && /docker-entrypoint.sh elasticsearch"
+  command: bash -c "plugin install mobz/elasticsearch-head ; /docker-entrypoint.sh elasticsearch"
