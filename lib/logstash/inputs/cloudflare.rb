@@ -51,15 +51,13 @@ end # def parse_content
 
 def read_file(filepath)
   # read the ray_id of the message which was parsed last
-  unless File.exist?(filepath)
-    @logger.info("file #{filepath} doesn't exist")
-    return ''
-  end
-  File.read(filepath).strip
+  return nil unless File.exist?(filepath)
+  content = File.read(filepath).strip
+  return nil unless content.empty?
+  content
 end # def read_file
 
 def write_file(filepath, content)
-  return nil unless content
   File.open(filepath, 'w') do |file|
     file.write(content)
   end
