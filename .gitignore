@@ -10,6 +10,5 @@
 /vendor/bundle
 /lib/bundler/man
 Gemfile.lock
-previous_cf_rayid
-previous_cf_tstamp
+cf_metadata.json
 logstash.conf

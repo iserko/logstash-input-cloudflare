@@ -49,20 +49,6 @@ def parse_content(content)
   lines
 end # def parse_content
 
-def read_file(filepath)
-  # read the ray_id of the message which was parsed last
-  return nil unless File.exist?(filepath)
-  content = File.read(filepath).strip
-  return nil unless content.empty?
-  content
-end # def read_file
-
-def write_file(filepath, content)
-  File.open(filepath, 'w') do |file|
-    file.write(content)
-  end
-end # def write_file
-
 # you can get the list of fields in the documentation provided
 # by Cloudflare
 DEFAULT_FIELDS = [
@@ -82,12 +68,10 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config :auth_email, validate: :string, required: true
   config :auth_key, validate: :string, required: true
   config :domain, validate: :string, required: true
-  config :cf_rayid_filepath,
-         validate: :string, default: '/tmp/previous_cf_rayid', required: false
-  config :cf_tstamp_filepath,
-         validate: :string, default: '/tmp/previous_cf_tstamp', required: false
+  config :metadata_filepath,
+         validate: :string, default: '/tmp/cf_logstash_metadata.json', required: false
   config :poll_time, validate: :number, default: 15, required: false
-  config :default_age, validate: :number, default: 1200, required: false
+  config :start_from_secs_ago, validate: :number, default: 1200, required: false
   config :fields, validate: :array, default: DEFAULT_FIELDS, required: false
 
   public
@@ -95,6 +79,35 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   def register
     @host = Socket.gethostname
   end # def register
+
+  def read_metadata
+    # read the ray_id of the message which was parsed last
+    metadata = {}
+    if File.exist?(@metadata_filepath)
+      content = File.read(@metadata_filepath).strip
+      unless content.empty?
+        begin
+          metadata = JSON.parse(content)
+        rescue JSON::ParserError
+          metadata = {}
+        end
+      end
+    end
+    # make sure metadata contains all the keys we need
+    %w(first_ray_id last_ray_id first_timestamp
+       last_timestamp).each do |field|
+      metadata[field] = nil unless metadata.key?(field)
+    end
+    metadata['default_start_time'] = \
+      Time.now.getutc.to_i - @start_from_secs_ago
+    metadata
+  end # def read_metadata
+
+  def write_metadata(metadata)
+    File.open(@metadata_filepath, 'w') do |file|
+      file.write(JSON.generate(metadata))
+    end
+  end # def write_metadata
 
   def cloudflare_api_call(endpoint, params, multi_line = false)
     uri = URI("https://api.cloudflare.com/client/v4#{endpoint}")
@@ -128,29 +141,51 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     raise "No zone with domain #{domain} found"
   end # def cloudflare_zone_id
 
-  def cf_params(ray_id, tstamp)
+  def cf_params(metadata)
     params = {}
-    # timestamp should always have priority over ray id due to the
-    # API not supporting `count`
-    if tstamp && !tstamp.empty?
-      dt_tstamp = DateTime.strptime(tstamp, '%s')
-      @logger.info("Previous timestamp detected: #{tstamp} #{dt_tstamp}")
-      params['start'] = tstamp.to_i
-      params['end'] = tstamp.to_i + 120
-    elsif ray_id && !ray_id.empty?
-      @logger.info("Previous ray_id detected: #{ray_id}")
-      params['start_id'] = ray_id
-      params['count'] = 100 # not supported in the API yet
-    else
-      @logger.info('Previous tstamp or ray_id NOT detected')
-      params['start'] = Time.now.getutc.to_i - @default_age
+    # if we have ray_id, we use that as a starting point and and use
+    # timestamp + 120 seconds as end because the API doesn't support the
+    # `count` parameter
+    if metadata['last_ray_id'] && metadata['last_timestamp']
+      dt_tstamp = DateTime.strptime("#{metadata['last_timestamp']}", '%s')
+      @logger.info('last_ray_id from previous run detected: '\
+                   "#{metadata['last_ray_id']}")
+      @logger.info('last_timestamp from previous run detected: '\
+                   "#{metadata['last_timestamp']} #{dt_tstamp}")
+      params['start_id'] = metadata['last_ray_id']
+      params['end'] = metadata['last_timestamp'].to_i + 120
+      metadata['first_ray_id'] = metadata['last_ray_id']
+      metadata['first_timestamp'] = nil
+    # not supported by the API yet which is why it's commented out
+    # elsif ray_id
+    #   @logger.info("Previous ray_id detected: #{ray_id}")
+    #   params['start_id'] = ray_id
+    #   params['count'] = 100 # not supported in the API yet
+    #   metadata['first_ray_id'] = ray_id
+    #   metadata['first_timestamp'] = nil
+    elsif metadata['last_timestamp']
+      dt_tstamp = DateTime.strptime(metadata['last_timestamp'], '%s')
+      @logger.info('last_timestamp from previous run detected: '\
+                   "#{metadata['last_timestamp']} #{dt_tstamp}")
+      params['start'] = metadata['last_timestamp'].to_i
       params['end'] = params['start'] + 120
+      metadata['first_ray_id'] = nil
+      metadata['first_timestamp'] = params['start']
+    else
+      @logger.info('last_timestamp or last_ray_id from previous run NOT set')
+      params['start'] = metadata['default_start_time']
+      params['end'] = params['start'] + 120
+      metadata['first_ray_id'] = nil
+      metadata['first_timestamp'] = params['start']
     end
+    metadata['last_timestamp'] = nil
+    metadata['last_ray_id'] = nil
     params
   end # def cf_params
 
-  def cloudflare_data(zone_id, ray_id, tstamp)
-    params = cf_params(ray_id, tstamp)
+  def cloudflare_data(zone_id, metadata)
+    @logger.info("cloudflare_data metadata: '#{metadata}'")
+    params = cf_params(metadata)
     @logger.info("Using params #{params}")
     begin
       entries = cloudflare_api_call("/zones/#{zone_id}/logs/requests",
@@ -183,42 +218,40 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     @logger.info("Resolved zone ID #{zone_id} for domain #{@domain}")
     until stop?
       begin
-        ray_id = read_file(@cf_rayid_filepath)
-        tstamp = read_file(@cf_tstamp_filepath)
-        entries = cloudflare_data(zone_id, ray_id, tstamp)
-        new_ray_id = nil
-        new_tstamp = nil
+        metadata = read_metadata
+        entries = cloudflare_data(zone_id, metadata)
         @logger.info("Received #{entries.length} events")
         entries.each do |entry|
+          # skip the first ray_id because we already processed it in the last run
+          next if metadata['first_ray_id'] && \
+                  entry['rayId'] == metadata['first_ray_id']
           event = LogStash::Event.new('host' => @host)
           fill_cloudflare_data(event, entry)
           decorate(event)
           queue << event
-          new_ray_id = entry['rayId']
+          metadata['last_ray_id'] = entry['rayId']
           # Cloudflare provides the timestamp in nanoseconds
-          new_tstamp = entry['timestamp'] / 1_000_000_000
+          metadata['last_timestamp'] = entry['timestamp'] / 1_000_000_000
         end
-        @logger.info("new_tstamp #{new_tstamp}")
-        if !new_tstamp && tstamp && !tstamp.empty?
+        @logger.info(metadata)
+        if !metadata['last_timestamp'] && metadata['first_timestamp']
           # we need to increment the timestamp by 2 minutes as we haven't
           # received any results in the last batch ... also make sure we
           # only do this if the end date is more than 10 minutes from the
           # current time
-          max_time = Time.now.getutc.to_i - @default_age
-          mod_tstamp = tstamp.to_i + 120
-          unless mod_tstamp > max_time
+          mod_tstamp = metadata['first_timestamp'].to_i + 120
+          unless mod_tstamp > metadata['default_start_time']
             @logger.info('Incrementing start timestamp by 120 seconds')
-            new_tstamp = mod_tstamp
+            metadata['last_timestamp'] = mod_tstamp
           end
-        else # if new_tstamp is set, we received results
+        else # if
           @logger.info("Waiting #{@poll_time} seconds before requesting data"\
                        'from Cloudflare again')
           (@poll_time * 2).times do
             sleep(0.5)
           end
         end
-        write_file(@cf_rayid_filepath, new_ray_id)
-        write_file(@cf_tstamp_filepath, new_tstamp)
+        write_metadata(metadata)
       rescue => exception
         break if stop?
         @logger.error(exception.class)
