@@ -222,7 +222,8 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         entries = cloudflare_data(zone_id, metadata)
         @logger.info("Received #{entries.length} events")
         entries.each do |entry|
-          # skip the first ray_id because we already processed it in the last run
+          # skip the first ray_id because we already processed it
+          # in the last run
           next if metadata['first_ray_id'] && \
                   entry['rayId'] == metadata['first_ray_id']
           event = LogStash::Event.new('host' => @host)
