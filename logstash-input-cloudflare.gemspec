@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
                   ' install gemname. This gem is not a stand-alone program'
   s.authors = ['Igor Serko']
   s.email = 'igor.serko@gmail.com'
-  s.homepage = 'http://www.elastic.co/guide/en/logstash/current/index.html'
+  s.homepage = 'https://github.com/iserko/logstash-input-cloudflare/'
   s.require_paths = ['lib']
 
   # Files
