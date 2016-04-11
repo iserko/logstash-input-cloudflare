@@ -235,16 +235,19 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
           metadata['last_timestamp'] = entry['timestamp'] / 1_000_000_000
         end
         @logger.info(metadata)
-        if !metadata['last_timestamp'] && metadata['first_timestamp']
+        if metadata['first_timestamp']
+          mod_tstamp = metadata['first_timestamp'].to_i + 120
+        else
+          mod_tstamp = nil
+        end
+        if !metadata['last_timestamp'] && metadata['first_timestamp'] && \
+           mod_tstamp <= metadata['default_start_time']
           # we need to increment the timestamp by 2 minutes as we haven't
           # received any results in the last batch ... also make sure we
           # only do this if the end date is more than 10 minutes from the
           # current time
-          mod_tstamp = metadata['first_timestamp'].to_i + 120
-          unless mod_tstamp > metadata['default_start_time']
-            @logger.info('Incrementing start timestamp by 120 seconds')
-            metadata['last_timestamp'] = mod_tstamp
-          end
+          @logger.info('Incrementing start timestamp by 120 seconds')
+          metadata['last_timestamp'] = mod_tstamp
         else # if
           @logger.info("Waiting #{@poll_time} seconds before requesting data"\
                        'from Cloudflare again')
