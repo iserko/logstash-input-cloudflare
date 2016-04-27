@@ -21,6 +21,10 @@ output {
     elasticsearch {
         hosts => ["esserver:9200"]
         index => "logstash-%{+YYYY.MM.dd}"
+        template_name => "cloudflare-logstash"
+        doc_as_upsert => true
+        document_id => "%{rayId}"
+        template_overwrite => true
     }
 }
 filter {

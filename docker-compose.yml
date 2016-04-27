@@ -19,3 +19,5 @@ kibana:
 elasticsearch:
   image: elasticsearch:2.2
   command: bash -c "plugin install mobz/elasticsearch-head ; /docker-entrypoint.sh elasticsearch"
+  ports:
+    - 9200:9200
