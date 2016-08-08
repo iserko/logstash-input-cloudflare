@@ -1,3 +1,8 @@
+## 0.9.6
+- using rubocop to keep the code tidy
+- cleaned up code in order to make rubocop happy
+- worker will now catch-up if it was shut off for some time
+
 ## 0.9.5
 - moar bugfixes
 
