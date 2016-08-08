@@ -227,8 +227,8 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   def process_entry(queue, metadata, entry)
     # skip the first ray_id because we already processed it
     # in the last run
-    next if metadata['first_ray_id'] && \
-            entry['rayId'] == metadata['first_ray_id']
+    return if metadata['first_ray_id'] && \
+              entry['rayId'] == metadata['first_ray_id']
     event = LogStash::Event.new('host' => @host)
     fill_cloudflare_data(event, entry)
     decorate(event)
