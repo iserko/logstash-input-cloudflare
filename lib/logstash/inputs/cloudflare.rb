@@ -148,9 +148,9 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     # if we have ray_id, we use that as a starting point
     if metadata['last_ray_id']
       @logger.info("Previous ray_id detected: #{ray_id}")
-      params['start_id'] = ray_id
+      params['start_id'] = metadata['last_ray_id']
       params['count'] = @batch_size
-      metadata['first_ray_id'] = ray_id
+      metadata['first_ray_id'] = metadata['last_ray_id']
       metadata['first_timestamp'] = nil
     elsif metadata['last_timestamp']
       dt_tstamp = DateTime.strptime(metadata['last_timestamp'], '%s')
