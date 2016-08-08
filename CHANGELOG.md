@@ -1,3 +1,6 @@
+## 0.9.5
+- moar bugfixes
+
 ## 0.9.4
 - bugfix release to fix a bug in 0.9.3
 
