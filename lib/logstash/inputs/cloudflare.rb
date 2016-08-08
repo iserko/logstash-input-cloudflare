@@ -72,6 +72,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
          validate: :string, default: '/tmp/cf_logstash_metadata.json', required: false
   config :poll_time, validate: :number, default: 15, required: false
   config :start_from_secs_ago, validate: :number, default: 1200, required: false
+  config :batch_size, validate: :number, default: 1000, required: false
   config :fields, validate: :array, default: DEFAULT_FIELDS, required: false
 
   public
@@ -144,26 +145,13 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
 
   def cf_params(metadata)
     params = {}
-    # if we have ray_id, we use that as a starting point and and use
-    # timestamp + 120 seconds as end because the API doesn't support the
-    # `count` parameter
-    if metadata['last_ray_id'] && metadata['last_timestamp']
-      dt_tstamp = DateTime.strptime("#{metadata['last_timestamp']}", '%s')
-      @logger.info('last_ray_id from previous run detected: '\
-                   "#{metadata['last_ray_id']}")
-      @logger.info('last_timestamp from previous run detected: '\
-                   "#{metadata['last_timestamp']} #{dt_tstamp}")
-      params['start_id'] = metadata['last_ray_id']
-      params['end'] = metadata['last_timestamp'].to_i + 120
-      metadata['first_ray_id'] = metadata['last_ray_id']
+    # if we have ray_id, we use that as a starting point
+    if metadata['last_ray_id']
+      @logger.info("Previous ray_id detected: #{ray_id}")
+      params['start_id'] = ray_id
+      params['count'] = @batch_size
+      metadata['first_ray_id'] = ray_id
       metadata['first_timestamp'] = nil
-    # not supported by the API yet which is why it's commented out
-    # elsif ray_id
-    #   @logger.info("Previous ray_id detected: #{ray_id}")
-    #   params['start_id'] = ray_id
-    #   params['count'] = 100 # not supported in the API yet
-    #   metadata['first_ray_id'] = ray_id
-    #   metadata['first_timestamp'] = nil
     elsif metadata['last_timestamp']
       dt_tstamp = DateTime.strptime(metadata['last_timestamp'], '%s')
       @logger.info('last_timestamp from previous run detected: '\
