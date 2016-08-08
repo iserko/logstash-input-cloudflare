@@ -1,3 +1,6 @@
+## 0.9.7
+- bugfix from leftover refactor
+
 ## 0.9.6
 - using rubocop to keep the code tidy
 - cleaned up code in order to make rubocop happy

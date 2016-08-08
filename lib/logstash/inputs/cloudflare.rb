@@ -115,7 +115,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     uri
   end
 
-  def _process_response(response, multi_line)
+  def _process_response(response, uri, multi_line)
     content = response_body(response)
     if response.code != '200'
       raise CloudflareAPIError.new(uri.to_s, response, content),
@@ -138,7 +138,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         'X-Auth-Key' => @auth_key
       )
       response = http.request(request)
-      return _process_response(response, multi_line)
+      return _process_response(response, uri, multi_line)
     end
   end # def cloudflare_api_call
 
