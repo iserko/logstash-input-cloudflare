@@ -1,3 +1,6 @@
+## 0.9.4
+- bugfix release to fix a bug in 0.9.3
+
 ## 0.9.3
 - CloudFlare API now works with start_id & count \o/
 
