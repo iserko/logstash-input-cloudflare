@@ -8,7 +8,7 @@ AllCops:
 
 Metrics/ClassLength:
   CountComments: false
-  Max: 200
+  Max: 300
 
 Metrics/LineLength:
   Max: 100

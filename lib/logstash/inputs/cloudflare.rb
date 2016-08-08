@@ -227,8 +227,8 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   def process_entry(queue, metadata, entry)
     # skip the first ray_id because we already processed it
     # in the last run
-    next if metadata['first_ray_id'] && \
-            entry['rayId'] == metadata['first_ray_id']
+    return if metadata['first_ray_id'] && \
+              entry['rayId'] == metadata['first_ray_id']
     event = LogStash::Event.new('host' => @host)
     fill_cloudflare_data(event, entry)
     decorate(event)
@@ -237,6 +237,15 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     # Cloudflare provides the timestamp in nanoseconds
     metadata['last_timestamp'] = entry['timestamp'] / 1_000_000_000
   end # def process_entry
+
+  def _sleep_time
+    @logger.info("Waiting #{@poll_time} seconds before requesting data"\
+                 'from Cloudflare again')
+    # We're staggering the poll_time so we don't block the worker for the whole 15s
+    (@poll_time * 2).times do
+      sleep(0.5)
+    end
+  end
 
   def continue_or_sleep(metadata)
     mod_tstamp = metadata['first_timestamp'].to_i + @poll_interval if metadata['first_timestamp']
@@ -248,12 +257,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       # current time
       @logger.info("Incrementing start timestamp by #{@poll_interval} seconds")
       metadata['last_timestamp'] = mod_tstamp
+    elsif metadata['last_timestamp'] < metadata['default_start_time']
+      # we won't need to sleep as we're trying to catch up
+      return
     else
-      @logger.info("Waiting #{@poll_time} seconds before requesting data"\
-                   'from Cloudflare again')
-      (@poll_time * 2).times do
-        sleep(0.5)
-      end
+      _sleep_time
     end
   end # def continue_or_sleep
 
@@ -261,6 +269,14 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
     metadata = read_metadata
     entries = cloudflare_data(zone_id, metadata)
     @logger.info("Received #{entries.length} events")
+    # if we only fetch one entry the odds are it's the one event that we asked for
+    if entries.length <= 1
+      @logger.info(
+        'Need more than 1 event to process all entries (usually because the 1 event contains the '\
+        'ray_id you asked for')
+      _sleep_time
+      return
+    end
     entries.each do |entry|
       process_entry(queue, metadata, entry)
     end
