@@ -27,7 +27,9 @@ RSpec.configure do |config|
     stub_request(:get, 'https://api.cloudflare.com/client/v4/zones?status=active')
       .with(headers: HEADERS)
       .to_return(status: 200, body: ZONE_LIST_RESPONSE.to_json, headers: {})
-    stub_request(:get, /api.cloudflare.com\/client\/v4\/zones\/zoneid\/logs\/requests.*/)
+    stub_request(
+      :get,
+      %r{/api.cloudflare.com\/client\/v4\/zones\/zoneid\/logs\/requests.*/})
       .with(headers: HEADERS)
       .to_return(status: 200, body: LOGS_RESPONSE.to_json, headers: {})
   end
