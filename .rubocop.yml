@@ -1,0 +1,21 @@
+AllCops:
+  Exclude:
+    - 'vendor/**/*'
+    - 'config/**/*'
+    - 'db/**/*'
+    - 'bin/*'
+    - 'Rakefile'
+
+Metrics/ClassLength:
+  CountComments: false
+  Max: 200
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  CountComments: false  # count full line comments?
+  Max: 30
+
+Documentation:
+  Enabled: false
