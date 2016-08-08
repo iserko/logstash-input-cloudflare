@@ -126,6 +126,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         raise CloudflareAPIError.new(uri.to_s, response, content),
               'Error calling Cloudflare API'
       end
+      @logger.info("Received response from Cloudflare API (status_code: #{response.code})")
       lines = parse_content(content)
       return lines if multi_line
       return lines[0]
