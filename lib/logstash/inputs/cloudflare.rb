@@ -143,7 +143,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   end # def cloudflare_api_call
 
   def cloudflare_zone_id(domain)
-    params = { status: 'active' }
+    params = { status: 'active', name: domain }
     response = cloudflare_api_call('/zones', params)
     response['result'].each do |zone|
       return zone['id'] if zone['name'] == domain

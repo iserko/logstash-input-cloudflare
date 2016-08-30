@@ -1,3 +1,6 @@
+## 0.9.8
+- fix for domain names not found with large accounts
+
 ## 0.9.7
 - bugfix from leftover refactor
 
