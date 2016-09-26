@@ -1,3 +1,6 @@
+## 0.9.9
+- changed default location of metadata_filepath file to /var/lib instead of /tmp
+
 ## 0.9.8
 - fix for domain names not found with large accounts
 

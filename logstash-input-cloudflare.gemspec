@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'logstash-input-cloudflare'
-  s.version = '0.9.8'
+  s.version = '0.9.9'
   s.licenses = ['Apache License (2.0)']
   s.summary = 'This logstash input plugin fetches logs from Cloudflare using'\
               'their API'
