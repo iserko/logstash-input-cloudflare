@@ -4,6 +4,8 @@ input {
         auth_key => "CF_AUTH_KEY"
         domain => "CF_DOMAIN"
         type => "cloudflare_logs"
+        poll_time => 15
+        poll_interval => 120
         metadata_filepath => "/logstash-input-cloudflare/cf_metadata.json"
         fields => [
           'timestamp', 'zoneId', 'ownerId', 'zoneName', 'rayId', 'securityLevel',
@@ -29,16 +31,16 @@ output {
 }
 filter {
  ruby {
-   code => "event['timestamp'] /= 1_000_000"
+   code => "event['timestamp_ms'] /= 1_000_000"
  }
  ruby {
-   code => "event['edge_startTimestamp'] /= 1_000_000"
+   code => "event['edge_requestTime'] = (event['edge_endTimestamp'] - event['edge_startTimestamp']).to_f / 1_000_000_000"
  }
  ruby {
-   code => "event['edge_endTimestamp'] /= 1_000_000"
+   code => "event['edgeResponse_headerBytes'] = event['edgeResponse_bytes'].to_i - event['edgeResponse_bodyBytes'].to_i"
  }
  date {
-   match => [ "timestamp", "UNIX_MS" ]
+   match => [ "timestamp_ms", "UNIX_MS" ]
  }
  geoip {
    source => "client_ip"

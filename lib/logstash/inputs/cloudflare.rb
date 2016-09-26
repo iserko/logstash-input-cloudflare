@@ -69,7 +69,7 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   config :auth_key, validate: :string, required: true
   config :domain, validate: :string, required: true
   config :metadata_filepath,
-         validate: :string, default: '/tmp/cf_logstash_metadata.json', required: false
+         validate: :string, default: '/var/lib/logstash/cf_metadata.json', required: false
   config :poll_time, validate: :number, default: 15, required: false
   config :poll_interval, validate: :number, default: 60, required: false
   config :start_from_secs_ago, validate: :number, default: 1200, required: false
