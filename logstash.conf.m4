@@ -14,8 +14,8 @@ input {
           'clientRequest.httpHost', 'clientRequest.httpMethod', 'clientRequest.uri',
           'clientRequest.httpProtocol', 'clientRequest.userAgent', 'cache.cacheStatus',
           'edge.cacheResponseTime', 'edge.startTimestamp', 'edge.endTimestamp',
-          'edgeResponse.status', 'edgeResponse.bytes', 'originResponse.status',
-          'origin.responseTime'
+          'edgeResponse.status', 'edgeResponse.bytes', 'edgeResponse.bodyBytes',
+          'originResponse.status', 'origin.responseTime'
         ]
     }
 }
@@ -23,7 +23,6 @@ output {
     elasticsearch {
         hosts => ["esserver:9200"]
         index => "logstash-%{+YYYY.MM.dd}"
-        template_name => "cloudflare-logstash"
         doc_as_upsert => true
         document_id => "%{rayId}"
         template_overwrite => true
@@ -31,7 +30,8 @@ output {
 }
 filter {
  ruby {
-   code => "event['timestamp_ms'] /= 1_000_000"
+   code => "event['timestamp_ms'] = event['timestamp'] / 1_000_000"
+   remove_field => [ 'timestamp' ]
  }
  ruby {
    code => "event['edge_requestTime'] = (event['edge_endTimestamp'] - event['edge_startTimestamp']).to_f / 1_000_000_000"
