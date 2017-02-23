@@ -1,3 +1,10 @@
+## 0.9.10
+- fixed an issue when Cloudflare wouldn't return a value for a field, Elasticsearch would return
+  an error and fail to process the message. Error in question was:
+  ```
+  {"type"=>"illegal_state_exception", "reason"=>"Can't get text on a END_OBJECT at 1:718"}
+  ```
+
 ## 0.9.9
 - changed default location of metadata_filepath file to /var/lib instead of /tmp
 

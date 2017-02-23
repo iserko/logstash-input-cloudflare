@@ -220,6 +220,9 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
       field.split('.').each do |field_part|
         value = value.fetch(field_part, {})
       end
+      # in the case of cache.cacheStatus ... if cacheStatus doesn't exist, it would return {}
+      # which results in ES erroring out, when passed in
+      next if value == {}
       event[field.tr('.', '_')] = value
     end
   end # def fill_cloudflare_data
