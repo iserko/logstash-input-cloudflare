@@ -1,6 +1,7 @@
 # Logstash Input Plugin for Cloudflare
 
 [![Circle CI](https://circleci.com/gh/iserko/logstash-input-cloudflare/tree/master.svg?style=svg&circle-token=78044d92053ebb2ad4ca3b45cdf3cbd271d71ac1)](https://circleci.com/gh/iserko/logstash-input-cloudflare/tree/master)
+[![Gem Version](https://badge.fury.io/rb/logstash-input-cloudflare.svg)](https://badge.fury.io/rb/logstash-input-cloudflare)
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash) and it allows Logstash to read web request logs from the Cloudflare ELS API. Then Logstash can parse those logs and store them into your store (ElasticSearch if you use the ELK stack).
 
