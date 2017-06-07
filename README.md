@@ -4,9 +4,9 @@
 
 This is a plugin for [Logstash](https://github.com/elastic/logstash) and it allows Logstash to read web request logs from the Cloudflare ELS API. Then Logstash can parse those logs and store them into your store (ElasticSearch if you use the ELK stack).
 
-The repository provides a sample logstash configuration which you can use and should just work (as long as you fill in `CF_AUTH_EMAIL`, `CF_AUTH_KEY` and `CF_DOMAIN`). Take the (example config file](https://github.com/iserko/logstash-input-cloudflare/blob/master/logstash.conf.m4) 
+The repository provides a sample logstash configuration which you can use and should just work (as long as you fill in `CF_AUTH_EMAIL`, `CF_AUTH_KEY` and `CF_DOMAIN`). Take the [example config file](https://github.com/iserko/logstash-input-cloudflare/blob/master/logstash.conf.m4) and play around.
 
-Read https://support.cloudflare.com/hc/en-us/articles/216672448-Enterprise-Log-Share-REST-API for more information about the Cloudflare Enterprise Log Share feature. **You are required to be a Cloudflare's Enterprise customer in order to use this plugin**
+Take a look at [Cloudflare Support page for Enterprise Log Share REST API](https://support.cloudflare.com/hc/en-us/articles/216672448-Enterprise-Log-Share-REST-API) for more information about the  feature. **You are required to be a Cloudflare's Enterprise customer in order to use this plugin**
 
 ## Configuration
 
