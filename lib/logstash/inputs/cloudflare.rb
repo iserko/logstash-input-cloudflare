@@ -72,6 +72,8 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
          validate: :string, default: '/var/lib/logstash/cf_metadata.json', required: false
   config :poll_time, validate: :number, default: 15, required: false
   config :poll_interval, validate: :number, default: 60, required: false
+  config :open_timeout, validate: :number, default: 60, required: false
+  config :read_timeout, validate: :number, default: 60, required: false
   config :start_from_secs_ago, validate: :number, default: 1200, required: false
   config :batch_size, validate: :number, default: 1000, required: false
   config :fields, validate: :array, default: DEFAULT_FIELDS, required: false
@@ -130,7 +132,10 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
   def cloudflare_api_call(endpoint, params, multi_line = false)
     uri = _build_uri(endpoint, params)
     @logger.info('Sending request to Cloudflare')
-    Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+    Net::HTTP.start(uri.hostname, uri.port,
+                    use_ssl: true,
+                    open_timeout: @open_timeout,
+                    read_timeout: @read_timeout) do |http|
       request = Net::HTTP::Get.new(
         uri.request_uri,
         'Accept-Encoding' => 'gzip',
@@ -144,7 +149,11 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
 
   def cloudflare_zone_id(domain)
     params = { status: 'active', name: domain }
-    response = cloudflare_api_call('/zones', params)
+    begin
+      response = cloudflare_api_call('/zones', params)
+    rescue Timeout::Error
+      raise 'Cloudflare API timed out. Consider adjusting the read_timeout.'
+    end
     response['result'].each do |zone|
       return zone['id'] if zone['name'] == domain
     end
@@ -207,6 +216,9 @@ class LogStash::Inputs::Cloudflare < LogStash::Inputs::Base
         @logger.error("Cloudflare error code: #{error['code']}: "\
                       "#{error['message']}")
       end
+      entries = []
+    rescue Timeout::Error
+      @logger.error('Cloudflare API timed out. Consider adjusting the read_timeout.')
       entries = []
     end
     return entries unless entries.empty?

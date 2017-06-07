@@ -1,3 +1,6 @@
+## 0.9.11
+- added option to set open and read timeouts for API calls.
+
 ## 0.9.10
 - fixed an issue when Cloudflare wouldn't return a value for a field, Elasticsearch would return
   an error and fail to process the message. Error in question was:
