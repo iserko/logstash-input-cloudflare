@@ -1,5 +1,9 @@
 # Logstash Input Plugin for Cloudflare
 
+> :warning: Deprecated repository 
+> Use the official Cloudflare logs solutions to getting/parsing logs from Cloudflare. See https://support.cloudflare.com/hc/en-us/articles/216672448-Cloudflare-Logs-formerly-ELS-
+> You can just use logpush to s3 and then use logstash plugins for reading from s3.
+
 [![Circle CI](https://circleci.com/gh/iserko/logstash-input-cloudflare/tree/master.svg?style=svg&circle-token=78044d92053ebb2ad4ca3b45cdf3cbd271d71ac1)](https://circleci.com/gh/iserko/logstash-input-cloudflare/tree/master)
 [![Gem Version](https://badge.fury.io/rb/logstash-input-cloudflare.svg)](https://badge.fury.io/rb/logstash-input-cloudflare)
 
